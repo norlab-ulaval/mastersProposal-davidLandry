@@ -1,0 +1,12 @@
+\begin{tabu}{ccccccc}
+\toprule
+Method & Real-time &  \parbox[t]{2cm}{ \centering Strong convergence assumption} &
+                          Predictive & \parbox[t]{2cm}{\centering Need for pre-existing data} &
+                          \parbox[t]{2cm}{\centering Need for ground-truth} & 3D \\ \midrule
+Hand-tuned               & x      &       & x   & x &   & x \\
+Brute-force estimate     &        &       &  x  &   &   & x \\
+Adaptative Kalman Filter & x      &       &     &   &   & x \\
+Closed-form estimate     & x      & x     & x   &   &   & x \\
+\ac{CELLO}               & x      &       & x   & x & x &   \\
+\ac{CELLOEM}             & x      &       & x   & x &   &   \\ \bottomrule
+\end{tabu}

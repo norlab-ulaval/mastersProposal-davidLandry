@@ -1,0 +1,298 @@
+\documentclass[10pt,letterpaper,oneside]{article}
+
+\input{./latexGoodPractices/preamble}
+
+%==============================================================
+% FILL THIS SECTION
+
+\newcommand{\projectTitle}{Assessing the behavior of the Iterative Closest Point algorithm in complex environments}
+\newcommand{\projectStudent}{David Landry}
+\newcommand{\projectStudentNIP}{111 040 494}
+\newcommand{\projectDate}{March 23, 2017} % or manually: November 23, 2017
+
+\newcommand{\projectSupervisor}{Prof. P. Gigu\`{e}re}
+\newcommand{\projectCoSupervisor}{Prof. F. Pomerleau}
+
+% Change to your specific bibliography file
+%\addbibresource{./latexGoodPractices/exampleReferences.bib}
+\addbibresource{./references.bib}
+%==============================================================
+
+
+
+
+% ---------------------------------------------------------------
+% Load style
+\input{mastersProposalStyle.tex}
+% ---------------------------------------------------------------
+
+% Colored text
+\usepackage[dvipsnames]{xcolor}
+
+% Fill the template with text
+\usepackage{lipsum}
+\newcommand{\lightlipsum}[1][0]{\textcolor{gray!50}{\lipsum[#1]}}
+
+% Customize enumerate list
+\usepackage{enumerate}
+
+% Acronyms
+\acrodef{ICP}[ICP]{Iterative Closest Point}
+\acrodef{CELLO}[CELLO]{Covariance Estimation and Learning through Likelihood Optimization}
+\acrodef{CELLOEM}[CELLO-EM]{Covariance Estimation and Learning through Likelihood Optimization and Expectation Maximizati8,902
+Postgraduates	8,689on}
+\acrodef{EM}[EM]{expectation maximization}
+
+%================================================================
+\begin{document}
+\makeCustomTitle
+\thispagestyle{titlePage}
+
+% ---------------------------------------------------------------
+\section{Introduction}
+
+When thinking about robots of today, one might imagine a robotic arm in a car factory.
+This kind of fixed, specialized robots is successfully being used to improve production efficiency in different domains.
+However a new type of robot is emerging, one that is free to move in its environment.
+The RHINO robot is a good example \cite{Burgard1998}.
+These are not easy to design, as they rely on precise and robust localization.
+A robot needs to know where it stands with respect to the environment if we want it to act upon its surroundings in a meaningful way.
+Although many efforts have been made in that direction in the past, localizing a robot in a given environment is still a challenging research problem.
+
+Various sensing modalities are used for localization.
+Two main examples are cameras and lidar sensors.
+Cameras capture information about the existing light in the environment and try to localize against it.
+They are passive sensors in that sense.
+Lidar sensors, however, are active.
+They emit light in the environment and capture the emitted signal as it comes back to the sensor.
+While cameras are good at detecting and recognizing landmarks, lidars are less sensitive to changes in lighting conditions \cite{McManus2012}.
+
+The need for accurate localization against a map is outlined in the Teach-and-Repeat task.
+In this task there is a preliminary \emph{Teach} phase.
+During that time the robot registers sensory inputs in a database as it is driven through a trajectory.
+In a subsequent \emph{Repeat} phase, the robot repeats the original trajectory by comparing the sensory inputs with those it recorded in the database.
+In that sense, the database can be taught of as a map that the robot localizes against later.
+Note that this paradigm is sensor-agnostic as it has been successfully implemented using cameras \cite{Furgale2010} and lidar sensors \cite{Sprunk2013}. 
+
+This proposal focuses on lidar sensing as a mean of robust localization.
+First, it outlines the problematic of \emph{uncertainty estimation} with lidar sensors in \autoref{sec:problem}.
+The importance of this research problem is emphasized in \autoref{ssec:motivation}.
+A summary of the existing approaches to solve it is in \autoref{sec:stateoftheart}.
+Then, \autoref{sec:objectives} describes my objectives with respect to uncertainty estimation of lidar sensing.
+It also contains a reasonable set of steps to accomplish these objectives.
+
+% ---------------------------------------------------------------
+\section{Research Problem} \label{sec:problem}
+
+A viable way to localize a robot using the range data from a lidar sensor is the \ac{ICP} algorithm \cite{Zhang1994}.
+It was developed simultaneously by \citet{Chen1991} and \citet{Besl1992}.
+It consists in iteratively aligning two point clouds by minimizing the distance between the closest points in each of them.
+In a first step, each point from the first point cloud is paired with its closest neighbor in the other point cloud.
+In a second step, a point cloud is moved such that the error between the pairs of points is minimized.
+Those steps are repeated until convergence.
+The output is a rigid transformation between the reference frame of both scans.
+
+When minimizing the error between the pairs of points, the error function could simply be the distance between the associated points.
+This variant is called the point-to-point version of ICP \cite[section 2.6.2]{Pomerleau2015}.
+There is also a point-to-plane version.
+In that case, the error is the distance between the point and the plane estimated from the shape of the other point cloud around its closest neighbor.
+In both cases, the error minimization is a non-convex combinatorial problem, because it is based on the pairing of closest points.
+
+In the context of mobile robotics, \ac{ICP} can be used to compute odometry or localization \cite{Censi2007}.
+It is used as odometry when successive scans are matched to estimate the egomotion of a robot.
+It is used as a localizer when a scan is matched with a larger point cloud to identify where the robot is within the larger point cloud.
+
+\subsection{The \acl{ICP} algorithm uncertainty} 
+
+One problem that arises when using \ac{ICP} is the estimation of its uncertainty.
+By uncertainty, we mean what kind of error is this algorithm likely to commit with respect to the true transform between the two point clouds.
+This will be the main theme of my proposal, which can be framed as follows:
+
+\begin{center}
+\emph{What is the uncertainty on the result of the \ac{ICP} algorithm on two given point clouds?}
+\end{center}
+
+The answer to this question is complex.
+The behavior of \ac{ICP} is greatly conditioned by the geometry of the matched scans \cite{Censi2007}.
+The result of this algorithm is also affected by sensor noise and data association problems.
+It is common to model this uncertainty as gaussian \cite{Censi2007,Bonnabel2016}.
+This assumption is useful to make the computation and representation of the uncertainty tractable.
+It also makes it easier to integrate \ac{ICP} in a Kalman Filter \cite{Zhang1994}.
+Consequently, the problem can be posed more precisely as the problem of searching for a covariance matrix that would represent the uncertainty.
+
+\subsection{Motivation}
+\label{ssec:motivation}
+
+A better understanding of the uncertainty of \ac{ICP} would benefit many areas of research.
+As already mentioned, predicting the covariance matrix of \ac{ICP} matches would allow us to integrate them in a Kalman Filter \cite{Zhang1994}.
+We would in turn be able to improve our state estimation of the robot.
+
+An improved grasp on the uncertainty of \ac{ICP} would also allow the construction of better maps for Teach-and-Repeat.
+In particular, it would enable us to be more careful in areas that are more difficult for \ac{ICP}.
+My previous paper \cite{Landry2016} is a good step in that direction.
+It can be considered as a map curating algorithm.
+It changes the level of detail in a Teach-and-Repeat map according to the uncertainty a robot has when localizing against it.
+The level of detail is increased in sections that have high uncertainty, and decreased in sections where the level of precision is satisfactory.
+However, it remains difficult to detect the areas that are uncertain for \ac{ICP} in the absence of a reliable and quick algorithm to estimate the covariance matrix.
+
+% ---------------------------------------------------------------
+\section{Related Work}
+
+\label{sec:stateoftheart}
+
+As of today, a hand-tuned estimate of the covariance matrix (i.e., a covariance that is independent of any sensor input) is still a common solution to this problem \cite{VegaBrown2013em}.
+Finding a good covariance matrix requires a lot of experience and trial and error.
+It is also task-specific.
+The chosen matrix has to be large enough to accommodate the most difficult match encountered during a task.
+However, it also has to be small enough to estimate the state of the robot to a satisfactory degree.
+
+The covariance matrix can also be estimated through sampling.
+This is referred to as the \enquote{brute-force} method.
+Unfortunately, the computational cost of \ac{ICP} makes sampling many scan matches prohibitive.
+Thus, estimating the covariance through sampling cannot be done online \cite{Censi2007}.
+
+\citet{Mehra1970}, \citet{Aghili2016} use \ac{ICP} inside a special form of the Kalman Filter (called Adaptative Kalman Filter).
+The Adaptative Kalman Filter is a form of Kalman Filter where the covariance matrix of the readings is modified in function of the gap between the predictions and the measurements.
+The caveat of their approach is that it estimates the covariance of the \ac{ICP} through purely statistical means.
+It is reactive, instead of being predictive.
+Their algorithm is thus still sensitive to outliers and needs to reject matches that seem unlikely.
+
+\citet{Censi2007} devised a way to estimate the covariance of \ac{ICP} by analyzing the underlying error function.
+There are indications that this estimation is optimistic in real-world situations \cite{VegaBrown2013em}, although more work is needed to prove that observation conclusively.
+This method was validated on simulated 2D datasets.
+\citet{Bonnabel2016} provided a theoretical proof of this approach, but also emphasized the need for the underlying error function to be smooth.
+Consequently the covariance estimation formula from \cite{Censi2007} should not be used with the point-to-point variant of \ac{ICP}. 
+Effectively, the error function produced by the point-to-point variant is not smooth.
+Also, this algorithm makes the assumption that \ac{ICP} always converges in the attraction region of the true solution \cite{Censi2007}.
+However, it is well known that \ac{ICP} may converge in a local minimum before reaching the true transform between both point clouds \cite{Bonnabel2016}.
+Finally, \citet{Manoj2015} extended the closed-form approach to 3D.
+They did not add any assumptions doing so.
+It means that this technique also makes the true convergence assumption.
+The indication from \citet{Bonnabel2016} that this technique should only be applied on the point-to-plan version of \ac{ICP} also holds.
+
+Afterwards, \citet{VegaBrown2013} introduced a data-driven approach to the problem called \ac{CELLO}.
+They used pre-existing sensory data to predict the covariance of a localization algorithm via machine-learning.
+It is more general than the previously presented approaches as it is applicable to various sensory modalities.
+This algorithm requires a predictor function that maps the sensory input in a smaller prediction space.
+The output of the predictor should capture properties that are important to covariance prediction.
+One caveat of this approach is the need for ground truth data to train the covariance prediction algorithm.
+It was used for state estimation in a real-world situation using visual sensors in \cite{Peretroukhin2015}.
+To the best of our knowledge, it was not validated on 3D lidar data.
+
+Finally, \citet{VegaBrown2013em} extended \ac{CELLO} to the situation where no ground truth is available.
+It was done using the \ac{EM} algorithm.
+This approach was validated for lidar on real-world 2D dataset.
+It was compared with the approach of \citet{Censi2007}.
+Their results suggest that the covariance of this approach is too optimistic.
+Again, we believe that it has not been tested against 3D lidar data.
+
+A summary of these six methods is shown in \autoref{tab:summary}.
+In this table, strong convergence assumption means that \ac{ICP} is assumed to always converge to the global minimum.
+Also, note that the fixed estimate is considered to need pre-existing data because of its trial and error nature.
+While this pre-existing data does not need to contain precise ground-truth information, it needs to contain enough information about the \ac{ICP} error so that a human can tune the covariance.
+Finally, \enquote{predictive} means that the algorithm does not need to encounter a difficult match online before it can increase the covariance to more appropriate value.
+
+\begin{table}[htbp]
+\centering
+\caption{Summary of the different methods to estimate \ac{ICP}'s covariance.}
+\input{summary.tex}
+\label{tab:summary}
+\end{table}
+
+As can be seen in \autoref{tab:summary}, the closed-form estimate can predict the covariance of 3D \ac{ICP} matches.
+However, as mentioned earlier in \autoref{sec:stateoftheart}, there are indications that this closed-form solution produces optimistic results.
+A natural reaction to this state of affairs is to extend the \ac{CELLO} algorithm to the 3D case.
+To be able to formally compare the 3D version of \ac{CELLO} and the existing closed form estimate, we also need a well-posed method to evaluate covariance estimation algorithms for \ac{ICP}.
+
+
+% ---------------------------------------------------------------
+\section{Objectives and Methodology}
+\label{sec:objectives}
+
+In light of this information, two main objectives can be defined for my master's.
+The first objective is to \emph{validate the existing estimations of \ac{ICP}'s covariance experimentally}.
+In other words, we need a sound framework to evaluate the quality of the provided estimates.
+To reach that goal, we propose the following steps:
+
+\begin{enumerate}[{1.}1]
+\item Review the existing methods of uncertainty estimation and familiarize myself with them.
+  This means reproducing the algorithms of all the common methods for uncertainty estimation.
+  It also means understanding the method of validation used when creating these algorithms, when applicable.
+  In particular, it is important to understand both the algorithms and the methods of validation used by the closed-form estimate \cite{Censi2007} and \ac{CELLO} \cite{VegaBrown2013}, as I am likely to compare my techniques to these works in the future.
+\item Create a validation method for \ac{ICP} covariance prediction that captures the necessary properties.
+\item Validate the performance of the existing covariance estimation methods on small, toy examples.
+  For example, we could test the validation method on datasets of synthetic point clouds.
+  It is easier to understand the behavior of our validation method if the examples used are easy to comprehend and fully controlled.
+  The validation method can then be adapted if needed.
+\item Finally, the algorithms should be tested in real-world environments.
+  To do so, I will need datasets that have ground truth information.
+  That way, it will be possible to determine if the compared techniques encompass the reported error.
+\end{enumerate} 
+
+The second objective is to \emph{improve our prediction of the \ac{ICP} covariance by using a machine learning based algorithm on a 3D lidar dataset}.
+More concretely, it implies to do the following:
+
+\begin{enumerate}[{2.}1]
+  % Adaptation to novel concepts.
+\item Familiarize myself with the \ac{CELLO} algorithm.
+  Fortunately, this adaptation work is also required in step 1.1.
+  % Theoretical work.
+\item Create (or find) a 3D point cloud predictor that captures the information necessary to the execution of the \ac{CELLO} algorithm.
+  Effectively, the reference papers \cite{VegaBrown2013,VegaBrown2013em} provide very little detail about the utilized predictor.
+  The overall characteristics of the predictor do not seem to be easily transferable to 3D.
+  Thus, finding a predictor that captures enough information to estimate covariance will be an important step of my master's.
+  % Evaluation in controlled environment.
+\item Collect data that is appropriate to the \ac{CELLO} algorithm.
+  Effectively, this algorithm requires ground truth information of the localization error.
+  I will have to research for any existing dataset that has this information.
+  Two existing candidates are the \emph{Challenging data sets for point cloud registration algorithms}~\cite{Pomerleau2012} and the \emph{KITTI} dataset~\cite{Geiger2013}.
+  We could also collect our own dataset for this purpose.
+  This would require equipment that will be described in \autoref{ssec:equipment}.
+  % Evaluation in real world environment.
+\item Use all the tools described above to run the \ac{CELLO} algorithm on a 3D lidar dataset.
+  The performance of the algorithm could be compared to that of a fixed covariance estimate, and the approach of the closed-form estimate \cite{Manoj2015}.
+  It would also be good to use the covariance estimation in a real context, by integrating it to a Kalman Filter for example.
+\end{enumerate}
+
+Finally, we must not forget the redaction of my master's thesis, which will occupy the last few months of my project.
+
+
+
+\subsection{Necessary equipment}
+\label{ssec:equipment}
+
+Some specialized equipment may be required for this project.
+In the eventuality we need to collect our own dataset, we have access to a Clearpath Husky A200 mobile robot.
+The Husky is equipped with a Velodyne HDL-32e lidar sensor.
+The ground truth may be collected using a theodolite.
+This could be borrowed from the \textit{Département de géomatique}, here at Université Laval.
+
+% ---------------------------------------------------------------
+\section{Schedule}
+
+A chronology of how I plan to execute these different objectives is found in \autoref{tab:schedule}.
+Note that the number of objectives is optimistic.
+This is a way to minimize the risk associated with my master's, in case some objectives turn out to be infeasible.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Schedule containing the objectives to be accomplished during my master's.
+  The numbers are references to the objectives listed in \autoref{sec:objectives}.}
+  \input{schedule.tex}
+  \label{tab:schedule}
+\end{table}
+
+% ---------------------------------------------------------------
+\section{Conclusion}
+
+This document described my project for the rest of my master's at Université Laval.
+It introduced the key problematic of covariance estimation for the \ac{ICP} algorithm.
+The relevance of this problematic was demonstrated through the examples of state estimation and map curating.
+Several state of the art techniques were introduced, and their respective caveats was discussed.
+Finally, this document described my objectives in more details and presented a reasonable sequence of steps to accomplish them.
+
+% ---------------------------------------------------------------
+\printbibliography
+
+
+\end{document}
